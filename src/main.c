@@ -6,7 +6,7 @@
 /*   By: tbruinem <tbruinem@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2020/10/03 19:19:16 by tbruinem      #+#    #+#                 */
-/*   Updated: 2020/10/04 23:39:26 by tbruinem      ########   odam.nl         */
+/*   Updated: 2020/10/04 23:49:25 by tbruinem      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -153,10 +153,6 @@ int		next_state(t_parser* parse, char c)
 	}
 	if (parse->state == OUT && c == ' ')
 		return (OUT);
-	if (parse->state == NEUTRAL && c == '"')
-		return (DQUOTE);
-	if (parse->state == NEUTRAL && c != ' ')
-		return (IN);
 	if (parse->state == IN && c == ' ')
 		return (OUT);
 	if (parse->state == IN && c == '"')
@@ -171,6 +167,10 @@ int		next_state(t_parser* parse, char c)
 		return (DQUOTE);
 	if ((parse->state == OUT || parse->state == NEUTRAL) && c == '\'')
 		return (SQUOTE);
+	if (parse->state == NEUTRAL && c == '"')
+		return (DQUOTE);
+	if (parse->state == NEUTRAL && c != ' ')
+		return (IN);
 	if (parse->state == OUT && c != ' ')
 		return (IN);
 	if (parse->state == DQUOTE && (c != '"' || parse->escape))
