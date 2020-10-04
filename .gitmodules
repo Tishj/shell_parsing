@@ -1,0 +1,3 @@
+[submodule "lib/libext"]
+	path = lib/libext
+	url = https://github.com/Tishj/ft_libext.git
