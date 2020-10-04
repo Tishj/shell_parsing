@@ -5,8 +5,8 @@
 /*                                                     +:+                    */
 /*   By: tbruinem <tbruinem@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
-/*   Created: 2020/10/03 19:33:52 by tbruinem      #+#    #+#                 */
-/*   Updated: 2020/10/04 15:02:45 by tbruinem      ########   odam.nl         */
+/*   Created: 2020/10/04 23:56:34 by tbruinem      #+#    #+#                 */
+/*   Updated: 2020/10/05 00:16:10 by tbruinem      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,16 +17,6 @@
 # include <unistd.h>
 # include <stdbool.h>
 # include <libext.h>
-
-// enum			e_toktype
-// {
-// 	REDIR_IN,
-// 	REDIR_WRITE,
-// 	REDIR_APPEND,
-// 	FILE,
-// 	PIPE,
-// 	SEMI,
-// };
 
 enum			e_state
 {
@@ -63,5 +53,21 @@ typedef struct	s_tok
 }				t_tok;
 
 typedef void (t_funct)(char, t_parser *, t_vec *);
+
+void			process(char *line, t_list *environment);
+void			state_squote(char c, t_parser* parser, t_vec* tokens);
+void			state_in(char c, t_parser* parser, t_vec* tokens);
+int				next_state(t_parser* parse, char c);
+void			env_init(t_list **env);
+void			print_mem(char *mem, size_t size);
+void			state_special(char c, t_parser* parser, t_vec *tokens);
+void			print_env(t_list *env);
+void			run_state_function(char c, t_parser* parser, t_vec* tokens);
+bool			is_valid_env(char c, size_t size);
+void			state_dquote(char c, t_parser *parser, t_vec *tokens);
+t_keyval		*env_keyval(char *raw);
+void			tokenizer(t_vec* tokens, char *line, t_list *environment);
+void			env_substitute(t_parser *parser, t_vec *tokens);
+void			env_destroy(t_list *env);
 
 #endif

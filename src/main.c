@@ -6,7 +6,7 @@
 /*   By: tbruinem <tbruinem@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2020/10/03 19:19:16 by tbruinem      #+#    #+#                 */
-/*   Updated: 2020/10/04 23:49:25 by tbruinem      ########   odam.nl         */
+/*   Updated: 2020/10/05 00:25:53 by tbruinem      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,9 +17,11 @@
 
 #include <parse_me.h>
 
-bool		is_valid_env(char c)
+bool		is_valid_env(char c, size_t size)
 {
-	if (c == '?' || c == '$' || c == '_')
+	if ((c == '?' || c == '$') && size <= 1)
+		return (true);
+	if (c == '_')
 		return (true);
 	if(c >= '0' && c <= '9')
 		return (true);
@@ -50,7 +52,9 @@ void		env_substitute(t_parser *parser, t_vec *tokens)
 		t_keyval	*keyval;
 
 		keyval =  iter->item;
-		if (!ft_strncmp(keyval->key, string + 1, parser->env_size - 1)) //because of the strncmp it's too greedy
+		if (!ft_strncmp("$", string + 1, parser->env_size - 1) && parser->env_size -1 == 1)
+			break ;
+		if (!ft_strncmp(keyval->key, string + 1, parser->env_size - 1) && parser->env_size - 1 == ft_strlen(keyval->key)) //because of the strncmp it's too greedy
 		{
 			vec_erase(&(((t_tok *)tokens->data) + tokens->len - 1)->string, parser->env_start, parser->env_size);
 			vec_insert(&(((t_tok *)tokens->data) + tokens->len - 1)->string, keyval->val, ft_strlen(keyval->val), parser->env_start);
@@ -216,10 +220,18 @@ void	state_in(char c, t_parser* parser, t_vec* tokens)
 		parser->escape = false;
 	else if (c == '\\')
 		parser->escape = true;
-	if (parser->env && is_valid_env(c) && !parser->escape)
+	if (parser->env && is_valid_env(c, parser->env_size) && !parser->escape)
 		parser->env_size++;
 	else if (parser->env)
+	{
 		env_substitute(parser, tokens);
+		if (c == '$' && !parser->escape)
+		{
+			parser->env = true;
+			parser->env_size = 1;
+			parser->env_start = string->len - 1;
+		}
+	}
 }
 
 void	state_dquote(char c, t_parser *parser, t_vec *tokens)
@@ -252,10 +264,18 @@ void	state_dquote(char c, t_parser *parser, t_vec *tokens)
 		parser->escape = false;
 	else if (c == '\\')
 		parser->escape = true;
-	if (parser->env && is_valid_env(c) && !parser->escape)
+	if (parser->env && is_valid_env(c, parser->env_size) && !parser->escape)
 		parser->env_size++;
 	else if (parser->env)
+	{
 		env_substitute(parser, tokens);
+		if (c == '$' && !parser->escape)
+		{
+			parser->env = true;
+			parser->env_size = 0;
+			parser->env_start = string->len - 1;
+		}
+	}
 }
 
 void	state_squote(char c, t_parser* parser, t_vec* tokens)
