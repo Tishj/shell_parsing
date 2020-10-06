@@ -6,7 +6,7 @@
 /*   By: tbruinem <tbruinem@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2020/10/04 23:56:34 by tbruinem      #+#    #+#                 */
-/*   Updated: 2020/10/06 13:27:33 by tbruinem      ########   odam.nl         */
+/*   Updated: 2020/10/06 14:37:21 by tbruinem      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,6 +17,16 @@
 # include <unistd.h>
 # include <stdbool.h>
 # include <libext.h>
+
+enum			e_tok
+{
+	DEFAULT,
+	OUTPUT,
+	INPUT,
+	APP,
+	PIPE,
+	SEMI,
+};
 
 enum			e_state
 {

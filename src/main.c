@@ -6,7 +6,7 @@
 /*   By: tbruinem <tbruinem@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2020/10/03 19:19:16 by tbruinem      #+#    #+#                 */
-/*   Updated: 2020/10/06 13:27:15 by tbruinem      ########   odam.nl         */
+/*   Updated: 2020/10/06 14:39:26 by tbruinem      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -143,13 +143,13 @@ void	env_init(t_list **env)
 int		next_state(t_parser* parse, char c)
 {
 	parse->old_state = parse->state;
-	if (parse->state != DQUOTE && parse->state != SQUOTE &&
+	if (parse->state != DQUOTE && parse->state != SQUOTE && parse->state != SPECIAL && !parse->escape &&
 		(c == '>' || c == '<' || c == '|' || c == ';'))
 		return (SPECIAL);
 	if (parse->state == SPECIAL && c == '>')
 		return (SPECIAL);
 	else if (parse->state == SPECIAL && (c == '<' || c == '|' || c == ';'))
-		exit (1);
+		return (-1);
 	else if (parse->state == SPECIAL)
 	{
 		parse->old_state = OUT;
@@ -159,9 +159,9 @@ int		next_state(t_parser* parse, char c)
 		return (OUT);
 	if (parse->state == IN && c == ' ')
 		return (OUT);
-	if (parse->state == IN && c == '"')
+	if (parse->state == IN && !parse->escape && c == '"')
 		return (DQUOTE);
-	if (parse->state == IN && c == '\'')
+	if (parse->state == IN && !parse->escape && c == '\'')
 		return (SQUOTE);
 	if (parse->state == SQUOTE && c == '\'')
 		return (NEUTRAL);
@@ -205,6 +205,7 @@ void	state_in(char c, t_parser* parser, t_vec* tokens)
 		string = &(((t_tok *)tokens->data) + tokens->len - 1)->string;
 		if (!vec_new(string, sizeof(char)))
 			exit (1);
+		(((t_tok *)tokens->data) + tokens->len - 1)->type = DEFAULT;
 	}
 	string = &(((t_tok *)tokens->data) + tokens->len - 1)->string;
 	if (c == '\\' && parser->escape || c != '\\')
@@ -249,6 +250,7 @@ void	state_dquote(char c, t_parser *parser, t_vec *tokens)
 		string = &(((t_tok *)tokens->data) + tokens->len - 1)->string;
 		if (!vec_new(string, sizeof(char)))
 			exit (1);
+		(((t_tok *)tokens->data) + tokens->len - 1)->type = DEFAULT;
 	}
 	string = &(((t_tok *)tokens->data) + tokens->len - 1)->string;
 	if (c != '"' && c != '\\' || parser->escape)
@@ -297,6 +299,7 @@ void	state_squote(char c, t_parser* parser, t_vec* tokens)
 		string = &(((t_tok *)tokens->data) + tokens->len - 1)->string;
 		if (!vec_new(string, sizeof(char)))
 			exit (1);
+		(((t_tok *)tokens->data) + tokens->len - 1)->type = DEFAULT;
 	}
 	string = &(((t_tok *)tokens->data) + tokens->len - 1)->string;
 	if (c != '\'')
@@ -305,10 +308,26 @@ void	state_squote(char c, t_parser* parser, t_vec* tokens)
 	parser->escape = false;
 }
 
+int		set_special_type(char c, bool first)
+{
+	if (c == '>' && first)
+		return (OUTPUT);
+	if (c == '>' && !first)
+		return (APP);
+	if (c == '|')
+		return (PIPE);
+	if (c == ';')
+		return (SEMI);
+	if (c == '<')
+		return (INPUT);
+	return (-1);
+}
+
 void	state_special(char c, t_parser* parser, t_vec *tokens)
 {
 	t_tok	tmp;
 	t_vec	*string;
+	bool	first;
 
 	if (parser->old_state != SPECIAL)
 	{
@@ -328,6 +347,7 @@ void	state_special(char c, t_parser* parser, t_vec *tokens)
 	string = &(((t_tok *)tokens->data) + tokens->len - 1)->string;
 	if (!vec_add(string, &c, 1))
 		exit(1);
+	(((t_tok *)tokens->data) + tokens->len - 1)->type = set_special_type(c, (string->len == 1));
 	parser->escape = false;
 }
 
@@ -354,6 +374,23 @@ int		error_null(char *errmsg)
 	return (0);
 }
 
+int		parser_special_end(t_parser *parser, char *line)
+{
+	char c;
+
+	if (line && parser->index)
+		c = line[parser->index - 1];
+	else
+		return (1);
+	if (c == '>')
+		return (error_null("Parse error near '>'."));
+	if (c == '<')
+		return (error_null("Parse error near '<'."));
+	if (c == '|')
+		return (error_null("PIPE PIPE PIPE."));
+	return (1);
+}
+
 int		tokenizer(t_vec* tokens, char *line, t_list *environment)
 {
 	t_parser	parser;
@@ -375,7 +412,12 @@ int		tokenizer(t_vec* tokens, char *line, t_list *environment)
 	while (line && line[parser.index])
 	{
 		parser.state = next_state(&parser, line[parser.index]);
-		dprintf(2, "STATE: %s | ENV: %s\n", states[parser.state], (parser.env) ? "TRUE" : "FALSE");
+		if (parser.state == -1)
+		{
+			dprintf(2, "Parse error near '%c'\n", line[parser.index]);
+			return (0);
+		}
+		dprintf(2, "STATE: %s | ENV: %s | ESCAPE: %s\n", states[parser.state], (parser.env) ? "TRUE" : "FALSE", (parser.escape) ? "TRUE" : "FALSE");
 		run_state_function(line[parser.index], &parser, tokens);
 		parser.index++;
 	}
@@ -390,25 +432,35 @@ int		tokenizer(t_vec* tokens, char *line, t_list *environment)
 		return (error_null("Parse error near double quote."));
 	if (parser.state == SQUOTE)
 		return (error_null("Parse error near single quote."));
+	if (parser.state == SPECIAL)
+		return (parser_special_end(&parser, line));
 	return (1);
 }
 
 int		process(char *line, t_list *environment)
 {
 	t_vec	tokens;
+	int		ret;
+	char	*token_types[] = {
+	[DEFAULT] = "DEFAULT",
+	[INPUT] = "INPUT",
+	[OUTPUT] = "OUTPUT",
+	[APP] = "APP",
+	[PIPE] = "PIPE",
+	[SEMI] = "SEMI"
+	};
 
 	if (!vec_new(&tokens, sizeof(t_tok)))
 		exit(1);
-	if (!tokenizer(&tokens, line, environment))
-		return (0);
-	for (size_t i = 0; i < tokens.len; i++)
+	ret = tokenizer(&tokens, line, environment);
+	for (size_t i = 0; ret == 1 && i < tokens.len; i++)
 	{
-		printf("[%ld] = %s\n", i, (((t_tok *)tokens.data) + i)->string.data);
+		printf("%-7s | [%ld] = %s\n", token_types[(((t_tok *)tokens.data) + i)->type], i, (((t_tok *)tokens.data) + i)->string.data);
 	}
 	for (size_t i = 0; i < tokens.len; i++)
 		vec_destroy(&((t_tok *)tokens.data + i)->string);
 	vec_destroy(&tokens);
-	return (1);
+	return (ret);
 }
 
 int	main(void)
