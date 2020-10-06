@@ -6,7 +6,7 @@
 /*   By: tbruinem <tbruinem@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2020/10/03 19:19:16 by tbruinem      #+#    #+#                 */
-/*   Updated: 2020/10/05 00:25:53 by tbruinem      ########   odam.nl         */
+/*   Updated: 2020/10/06 13:27:15 by tbruinem      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -348,7 +348,13 @@ void	run_state_function(char c, t_parser* parser, t_vec* tokens)
 		funct(c, parser, tokens);
 }
 
-void	tokenizer(t_vec* tokens, char *line, t_list *environment)
+int		error_null(char *errmsg)
+{
+	dprintf(2, "%s\n", errmsg);
+	return (0);
+}
+
+int		tokenizer(t_vec* tokens, char *line, t_list *environment)
 {
 	t_parser	parser;
 	const char	*states [] = {
@@ -378,15 +384,23 @@ void	tokenizer(t_vec* tokens, char *line, t_list *environment)
 			exit(1);
 	if (parser.env && parser.env_size)
 		env_substitute(&parser, tokens);
+	if (parser.escape)
+		return (error_null("Line can not end on '\\' multi-line not supported."));
+	if (parser.state == DQUOTE)
+		return (error_null("Parse error near double quote."));
+	if (parser.state == SQUOTE)
+		return (error_null("Parse error near single quote."));
+	return (1);
 }
 
-void	process(char *line, t_list *environment)
+int		process(char *line, t_list *environment)
 {
 	t_vec	tokens;
 
 	if (!vec_new(&tokens, sizeof(t_tok)))
 		exit(1);
-	tokenizer(&tokens, line, environment);
+	if (!tokenizer(&tokens, line, environment))
+		return (0);
 	for (size_t i = 0; i < tokens.len; i++)
 	{
 		printf("[%ld] = %s\n", i, (((t_tok *)tokens.data) + i)->string.data);
@@ -394,6 +408,7 @@ void	process(char *line, t_list *environment)
 	for (size_t i = 0; i < tokens.len; i++)
 		vec_destroy(&((t_tok *)tokens.data + i)->string);
 	vec_destroy(&tokens);
+	return (1);
 }
 
 int	main(void)
@@ -409,7 +424,8 @@ int	main(void)
 	while (1)
 	{
 //		printf("%s\n", line);
-		process(line, env);
+		if (!process(line, env))
+			dprintf(2, "Error occured during processing\n");
 		free(line);
 		line = NULL;
 		if (ret == 0)
